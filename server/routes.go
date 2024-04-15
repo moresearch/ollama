@@ -471,22 +471,51 @@ func EmbeddingsHandler(c *gin.Context) {
 	}
 
 	// an empty request loads the model
-	if req.Prompt == "" {
-		c.JSON(http.StatusOK, api.EmbeddingResponse{Embedding: []float64{}})
-		return
+	if req.Prompt == "" && len(req.Prompts) == 0 {
+		if len(req.Prompts) == 0 {
+			c.JSON(http.StatusOK, api.EmbeddingResponse{Embedding: []float64{}})
+			return
+		}
+
+		if len(req.Prompts) == 0 {
+			c.JSON(http.StatusOK, api.EmbeddingResponse{Embeddings: [][]float64{}})
+			return
+		}
 	}
 
-	embedding, err := loaded.llama.Embedding(c.Request.Context(), req.Prompt)
-	if err != nil {
-		slog.Info(fmt.Sprintf("embedding generation failed: %v", err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate embedding"})
-		return
-	}
+	switch {
+	// single embedding
+	case len(req.Prompt) > 0:
+		embeddings, err := loaded.llama.Embedding(c.Request.Context(), []string{req.Prompt})
+		if err != nil {
+			slog.Info(fmt.Sprintf("embedding generation failed: %v", err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate embedding"})
+			return
+		}
 
-	resp := api.EmbeddingResponse{
-		Embedding: embedding,
+		resp := api.EmbeddingResponse{Embedding: embeddings[0]}
+		c.JSON(http.StatusOK, resp)
+
+	// batch embeddings
+	case len(req.Prompts) > 0:
+		embeddings, err := loaded.llama.Embedding(c.Request.Context(), req.Prompts)
+		if err != nil {
+			slog.Info(fmt.Sprintf("embedding generation failed: %v", err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate embedding"})
+			return
+		}
+
+		resp := api.EmbeddingResponse{Embeddings: embeddings}
+		c.JSON(http.StatusOK, resp)
+
+	// empty prompt loads the model
+	default:
+		if req.Prompts != nil {
+			c.JSON(http.StatusOK, api.EmbeddingResponse{Embeddings: [][]float64{}})
+		} else {
+			c.JSON(http.StatusOK, api.EmbeddingResponse{Embedding: []float64{}})
+		}
 	}
-	c.JSON(http.StatusOK, resp)
 }
 
 func PullModelHandler(c *gin.Context) {

@@ -675,15 +675,15 @@ func (s *LlamaServer) Completion(ctx context.Context, req CompletionRequest, fn 
 	return fmt.Errorf("max retries exceeded")
 }
 
-type EmbeddingRequest struct {
-	Content string `json:"content"`
+type EmbeddingsRequest struct {
+	Contents []string `json:"contents"`
 }
 
-type EmbeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
+type EmbeddingsResponse struct {
+	Embeddings [][]float64 `json:"embeddings"`
 }
 
-func (s *LlamaServer) Embedding(ctx context.Context, prompt string) ([]float64, error) {
+func (s *LlamaServer) Embedding(ctx context.Context, prompts []string) ([][]float64, error) {
 	// Make sure the server is ready
 	status, err := s.getServerStatus(ctx)
 	if err != nil {
@@ -692,12 +692,12 @@ func (s *LlamaServer) Embedding(ctx context.Context, prompt string) ([]float64, 
 		return nil, fmt.Errorf("unexpected server status: %d", status)
 	}
 
-	data, err := json.Marshal(TokenizeRequest{Content: prompt})
+	data, err := json.Marshal(EmbeddingsRequest{Contents: prompts})
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling embed data: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/embedding", s.port), bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/embeddings", s.port), bytes.NewBuffer(data))
 	if err != nil {
 		return nil, fmt.Errorf("error creating embed request: %w", err)
 	}
@@ -719,12 +719,12 @@ func (s *LlamaServer) Embedding(ctx context.Context, prompt string) ([]float64, 
 		return nil, fmt.Errorf("%s", body)
 	}
 
-	var embedding EmbeddingResponse
+	var embedding EmbeddingsResponse
 	if err := json.Unmarshal(body, &embedding); err != nil {
 		return nil, fmt.Errorf("unmarshal tokenize response: %w", err)
 	}
 
-	return embedding.Embedding, nil
+	return embedding.Embeddings, nil
 }
 
 type TokenizeRequest struct {

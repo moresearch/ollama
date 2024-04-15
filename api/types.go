@@ -159,14 +159,16 @@ type Runner struct {
 
 type EmbeddingRequest struct {
 	Model     string    `json:"model"`
-	Prompt    string    `json:"prompt"`
+	Prompt    string    `json:"prompt,omitempty"`
+	Prompts   []string  `json:"prompts,omitempty"`
 	KeepAlive *Duration `json:"keep_alive,omitempty"`
 
 	Options map[string]interface{} `json:"options"`
 }
 
 type EmbeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
+	Embedding  []float64   `json:"embedding"`
+	Embeddings [][]float64 `json:"embeddings"`
 }
 
 type CreateRequest struct {
