@@ -27,14 +27,17 @@ var (
 
 // Defaults
 const (
+	// DefaultHost is the default registry hostname.
+	DefaultHost = "registry.ollama.ai"
+
 	// MaskDefault is the default mask used by [Name.DisplayShortest].
-	MaskDefault = "registry.ollama.ai/library/?:latest"
+	MaskDefault = DefaultHost + "/library/?:latest"
 
 	// MaskNothing is a mask that masks nothing.
 	MaskNothing = "?/?/?:?"
 
 	// DefaultFill is the default fill used by [ParseName].
-	FillDefault = "registry.ollama.ai/library/?:latest+Q4_0"
+	FillDefault = DefaultHost + "/library/?:latest+Q4_0"
 
 	// FillNothing is a fill that fills nothing.
 	FillNothing = "?/?/?:?+?"
