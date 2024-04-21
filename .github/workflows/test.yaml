@@ -306,7 +306,7 @@ jobs:
         shell: bash
       - run: $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go build -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
-      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} 
+      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go build -g -s
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
       - run: go build
       - run: go test -v ./...
