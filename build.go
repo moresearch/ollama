@@ -17,7 +17,7 @@ import (
 var (
 	flagRegenerateDestroy = flag.Bool("d", false, "force regenerate the dependencies (destructive)")
 	flagRegenerateGently  = flag.Bool("g", false, "regenerate the dependencies (non-destructive)")
-	flagNoBuild           = flag.Bool("nobuild", false, "generate dependencies only (e.g. skip 'go build .')")
+	flagSkipBuild         = flag.Bool("s", false, "generate dependencies only (e.g. skip 'go build .')")
 
 	// Flags to set GOARCH and GOOS explicitly for cross-platform builds,
 	// e.g., in CI to target a different platform than the build matrix
@@ -73,7 +73,7 @@ func main() {
 	log.Printf("=== Building Ollama ===")
 	defer func() {
 		log.Printf("=== Done building Ollama ===")
-		if !*flagNoBuild {
+		if !*flagSkipBuild {
 			log.Println()
 			log.Println("To run the Ollama server, use:")
 			log.Println()
@@ -126,7 +126,7 @@ func checkDependencies() error {
 func goBuildOllama() error {
 	log.Println("=== Building Ollama binary ===")
 	defer log.Printf("=== Done building Ollama binary ===\n\n")
-	if *flagNoBuild {
+	if *flagSkipBuild {
 		log.Println("Skipping 'go build -o ollama .'")
 		return nil
 	}

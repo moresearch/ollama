@@ -64,7 +64,7 @@ jobs:
           $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
         name: 'Windows Go Generate'
-      - run: go build.go -g -s
+      - run: go run build.go -g -s
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
         name: 'Unix Go Generate'
       - uses: actions/upload-artifact@v4
@@ -168,7 +168,7 @@ jobs:
           $env:OLLAMA_SKIP_CPU_GENERATE="1"
           $env:HIP_PATH=$(Resolve-Path 'C:\Program Files\AMD\ROCm\*\bin\clang.exe' | split-path | split-path)
           go run build.go -g -s
-        name: go run build.go
+        name: go run build.go -g -s
         env:
           OLLAMA_SKIP_CPU_GENERATE: '1'
       # TODO - do we need any artifacts?
@@ -304,9 +304,9 @@ jobs:
           touch llm/build/windows/$ARCH/stub/bin/ollama_llama_server
         if: ${{ startsWith(matrix.os, 'windows-') }}
         shell: bash
-      - run: $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go build -g -s
+      - run: $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
-      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go build -g -s
+      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
       - run: go build
       - run: go test -v ./...
