@@ -16,8 +16,8 @@ import (
 // Flags
 var (
 	flagRegenerateDestroy = flag.Bool("d", false, "force regenerate the dependencies (destructive)")
-	flagRegenerate        = flag.Bool("g", false, "regenerate the dependencies (non-destructive)")
-	flagSkipBuild         = flag.Bool("s", false, "generate dependencies only (e.g. skip 'go build .')")
+	flagRegenerateGently  = flag.Bool("g", false, "regenerate the dependencies (non-destructive)")
+	flagNoBuild           = flag.Bool("nobuild", false, "generate dependencies only (e.g. skip 'go build .')")
 
 	// Flags to set GOARCH and GOOS explicitly for cross-platform builds,
 	// e.g., in CI to target a different platform than the build matrix
@@ -73,7 +73,7 @@ func main() {
 	log.Printf("=== Building Ollama ===")
 	defer func() {
 		log.Printf("=== Done building Ollama ===")
-		if !*flagSkipBuild {
+		if !*flagNoBuild {
 			log.Println()
 			log.Println("To run the Ollama server, use:")
 			log.Println()
@@ -126,7 +126,7 @@ func checkDependencies() error {
 func goBuildOllama() error {
 	log.Println("=== Building Ollama binary ===")
 	defer log.Printf("=== Done building Ollama binary ===\n\n")
-	if *flagSkipBuild {
+	if *flagNoBuild {
 		log.Println("Skipping 'go build -o ollama .'")
 		return nil
 	}
@@ -149,8 +149,8 @@ func buildLlammaCPP() error {
 			return err
 		}
 	}
-	if isDirectory(filepath.Join("llm", "build")) && !*flagRegenerate {
-		log.Println("llm/build already exists; skipping.  Use -f to force re-generate.")
+	if isDirectory(filepath.Join("llm", "build")) && !*flagRegenerateGently {
+		log.Println("llm/build already exists; skipping.  Use -d or -g to re-generate.")
 		return nil
 	}
 
