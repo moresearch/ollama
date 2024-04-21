@@ -61,7 +61,7 @@ jobs:
           $env:CMAKE_SYSTEM_VERSION="10.0.22621.0"
           $env:PATH="$gopath;$gccpath;$env:PATH"
           echo $env:PATH
-          $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}" go run build.go -g -s
+          $env:GOARCH="" $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}" go run build.go -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
         name: 'Windows Generate'
       - run: |
@@ -305,7 +305,7 @@ jobs:
           touch llm/build/windows/$ARCH/stub/bin/ollama_llama_server
         if: ${{ startsWith(matrix.os, 'windows-') }}
         shell: bash
-      - run: $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}" go run build.go -g -s
+      - run: $env:GOARCH="" $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}" go run build.go -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
       - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
