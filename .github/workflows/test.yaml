@@ -63,10 +63,11 @@ jobs:
           echo $env:PATH
           $env:GOARCH= $env:OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ startsWith(matrix.os, 'windows-') }}
-        name: 'Windows Go Generate'
-      - run: go run build.go -g -s
+        name: 'Windows Generate'
+      - run: |
+      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
-        name: 'Unix Go Generate'
+        name: 'Unix Generate'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.arch }}-libraries
