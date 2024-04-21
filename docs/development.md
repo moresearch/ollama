@@ -39,7 +39,7 @@ build.go script again using the `-f` flag to force a rebuild, and,
 optionally, the `-d` flag to skip building the Go binary:
 
 ```bash
-go run build.go -f -d
+go run build.go -d -s
 ```
 
 ### Linux
