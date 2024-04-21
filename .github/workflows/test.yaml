@@ -61,11 +61,11 @@ jobs:
           $env:CMAKE_SYSTEM_VERSION="10.0.22621.0"
           $env:PATH="$gopath;$gccpath;$env:PATH"
           echo $env:PATH
-          $env:GOARCH=""; $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}"; go run build.go -g -s
+          $env:GOARCH=""; $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}"; go generate -x ./...
         if: ${{ startsWith(matrix.os, 'windows-') }}
         name: 'Windows Generate'
       - run: |
-      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
+      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go generate -x ./...
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
         name: 'Unix Generate'
       - uses: actions/upload-artifact@v4
@@ -98,7 +98,7 @@ jobs:
       - run: go get ./...
       - run: |
           git config --global --add safe.directory /__w/ollama/ollama
-          go run build.go -g -s
+          go generate -x ./...
         env:
           OLLAMA_SKIP_CPU_GENERATE: '1'
       - uses: actions/upload-artifact@v4
@@ -129,7 +129,7 @@ jobs:
       - run: go get ./...
       - run: |
           git config --global --add safe.directory /__w/ollama/ollama
-          go run build.go -g -s
+          go generate -x ./...
         env:
           OLLAMA_SKIP_CPU_GENERATE: '1'
       - uses: actions/upload-artifact@v4
@@ -168,8 +168,8 @@ jobs:
           $env:PATH="$gopath;$env:PATH"
           $env:OLLAMA_SKIP_CPU_GENERATE="1"
           $env:HIP_PATH=$(Resolve-Path 'C:\Program Files\AMD\ROCm\*\bin\clang.exe' | split-path | split-path)
-          go run build.go -g -s
-        name: go run build.go -g -s
+          go generate -x ./...
+        name: go generate -x ./...
         env:
           OLLAMA_SKIP_CPU_GENERATE: '1'
       # TODO - do we need any artifacts?
@@ -202,7 +202,7 @@ jobs:
       - name: 'Verify CUDA'
         run: nvcc -V
       - run: go get ./...
-      - name: go run build.go -g -s
+      - name: go generate -x ./...
         run: |
           $gopath=(get-command go).source | split-path -parent
           $cudabin=(get-command nvcc).source | split-path
@@ -211,7 +211,7 @@ jobs:
           $env:CMAKE_SYSTEM_VERSION="10.0.22621.0"
           $env:PATH="$gopath;$cudabin;$env:PATH"
           $env:OLLAMA_SKIP_CPU_GENERATE="1"
-          go run build.go -g -s
+          go generate -x ./...
         env:
           OLLAMA_SKIP_CPU_GENERATE: '1'
       # TODO - do we need any artifacts?
@@ -305,9 +305,9 @@ jobs:
           touch llm/build/windows/$ARCH/stub/bin/ollama_llama_server
         if: ${{ startsWith(matrix.os, 'windows-') }}
         shell: bash
-      - run: $env:GOARCH=""; $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}"; go run build.go -g -s
+      - run: $env:GOARCH=""; $env:OLLAMA_BUILD_TARGET_ARCH="${{ matrix.arch }}"; go generate -x ./...
         if: ${{ startsWith(matrix.os, 'windows-') }}
-      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go run build.go -g -s
+      - run: GOARCH= OLLAMA_BUILD_TARGET_ARCH=${{ matrix.arch }} go generate -x ./...
         if: ${{ ! startsWith(matrix.os, 'windows-') }}
       - run: go build
       - run: go test -v ./...
