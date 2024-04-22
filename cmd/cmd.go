@@ -53,12 +53,13 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 	p := progress.NewProgress(os.Stderr)
 	defer p.Stop()
 
-	modelfile, err := os.ReadFile(filename)
+	modelfile, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
+	defer modelfile.Close()
 
-	commands, err := parser.Parse(bytes.NewReader(modelfile))
+	commands, err := parser.Parse(modelfile)
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,10 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 	spinner := progress.NewSpinner(status)
 	p.Add(status, spinner)
 
+	var b bytes.Buffer
 	for _, c := range commands {
+		line := c.String()
+
 		switch c.Name {
 		case "model", "adapter":
 			path := c.Args
@@ -110,8 +114,10 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			modelfile = bytes.ReplaceAll(modelfile, []byte(c.Args), []byte("@"+digest))
+			line = strings.ReplaceAll(c.String(), c.Args, "@"+digest)
 		}
+
+		b.WriteString(line)
 	}
 
 	bars := make(map[string]*progress.Bar)
@@ -140,7 +146,7 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 
 	quantization, _ := cmd.Flags().GetString("quantization")
 
-	request := api.CreateRequest{Name: args[0], Modelfile: string(modelfile), Quantization: quantization}
+	request := api.CreateRequest{Name: args[0], Modelfile: b.String(), Quantization: quantization}
 	if err := client.Create(cmd.Context(), &request, fn); err != nil {
 		return err
 	}

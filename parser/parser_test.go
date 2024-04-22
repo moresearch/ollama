@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +34,7 @@ TEMPLATE template1
 		{Name: "template", Args: "template1"},
 	}
 
-	assert.Equal(t, expectedCommands, commands)
+	assert.True(t, cmp.Equal(expectedCommands, commands, cmpopts.IgnoreFields(Command{}, "Buffer")))
 }
 
 func Test_Parser_NoFromLine(t *testing.T) {
@@ -82,7 +84,7 @@ MESSAGE assistant Hello, I want to parse all the things!
 		{Name: "message", Args: "assistant: Hello, I want to parse all the things!"},
 	}
 
-	assert.Equal(t, expectedCommands, commands)
+	assert.True(t, cmp.Equal(expectedCommands, commands, cmpopts.IgnoreFields(Command{}, "Buffer")))
 }
 
 func Test_Parser_Messages_BadRole(t *testing.T) {
@@ -95,4 +97,49 @@ MESSAGE badguy I'm a bad guy!
 	reader := strings.NewReader(input)
 	_, err := Parse(reader)
 	assert.ErrorContains(t, err, "role must be one of \"system\", \"user\", or \"assistant\"")
+}
+
+func Test_Parser_Multiline(t *testing.T) {
+	type testCase struct {
+		input    string
+		expected []Command
+	}
+
+	var testCases = []testCase{
+		{
+			`
+FROM foo
+TEMPLATE """
+{{ .System }}
+
+{{ .Prompt }}
+"""
+
+SYSTEM """
+This is a multiline system message.
+"""
+`,
+			[]Command{
+				{Name: "model", Args: "foo"},
+				{Name: "template", Args: "{{ .System }}\n\n{{ .Prompt }}\n"},
+				{Name: "system", Args: "This is a multiline system message.\n"},
+			},
+		},
+		{
+			`FROM foo
+			TEMPLATE """{{ .System }} {{ .Prompt }}"""`,
+			[]Command{
+				{Name: "model", Args: "foo"},
+				{Name: "template", Args: "{{ .System }} {{ .Prompt }}"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		reader := strings.NewReader(tc.input)
+		commands, err := Parse(reader)
+		assert.Nil(t, err)
+
+		assert.True(t, cmp.Equal(tc.expected, commands, cmpopts.IgnoreFields(Command{}, "Buffer")))
+	}
 }

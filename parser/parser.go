@@ -6,127 +6,151 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
-	"slices"
+	"strings"
 )
 
 type Command struct {
 	Name string
 	Args string
+	bytes.Buffer
 }
 
-func (c *Command) Reset() {
-	c.Name = ""
-	c.Args = ""
-}
+func Parse(r io.Reader) ([]Command, error) {
+	var cmds []Command
+	var cmd Command
+	var b bytes.Buffer
 
-func Parse(reader io.Reader) ([]Command, error) {
-	var commands []Command
-	var command, modelCommand Command
+	var quotes int
 
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, bufio.MaxScanTokenSize), bufio.MaxScanTokenSize)
-	scanner.Split(scanModelfile)
-	for scanner.Scan() {
-		line := scanner.Bytes()
+	s := stateName
+	br := bufio.NewReader(r)
+	for {
+		r, _, err := br.ReadRune()
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return nil, err
+		}
 
-		fields := bytes.SplitN(line, []byte(" "), 2)
-		if len(fields) == 0 || len(fields[0]) == 0 {
+		if _, err := cmd.WriteRune(r); err != nil {
+			return nil, err
+		}
+
+		// trim leading whitespace
+		if (space(r) || newline(r)) && b.Len() == 0 {
 			continue
 		}
 
-		switch string(bytes.ToUpper(fields[0])) {
-		case "FROM":
-			command.Name = "model"
-			command.Args = string(bytes.TrimSpace(fields[1]))
-			// copy command for validation
-			modelCommand = command
-		case "ADAPTER":
-			command.Name = string(bytes.ToLower(fields[0]))
-			command.Args = string(bytes.TrimSpace(fields[1]))
-		case "LICENSE", "TEMPLATE", "SYSTEM", "PROMPT":
-			command.Name = string(bytes.ToLower(fields[0]))
-			command.Args = string(fields[1])
-		case "PARAMETER":
-			fields = bytes.SplitN(fields[1], []byte(" "), 2)
-			if len(fields) < 2 {
-				return nil, fmt.Errorf("missing value for %s", fields)
+		switch s {
+		case stateName, stateParameter:
+			if alpha(r) || number(r) {
+				if _, err := b.WriteRune(r); err != nil {
+					return nil, err
+				}
+			} else if space(r) {
+				cmd.Name = strings.ToLower(b.String())
+				b.Reset()
+
+				if cmd.Name == "from" {
+					cmd.Name = "model"
+				}
+
+				switch cmd.Name {
+				case "parameter":
+					s = stateParameter
+				case "message":
+					s = stateMessage
+				default:
+					s = stateArgs
+				}
+			} else if newline(r) {
+				return nil, fmt.Errorf("missing value for [%s]", b.String())
 			}
+		case stateArgs:
+			if r == '"' && b.Len() == 0 {
+				quotes++
+				s = stateMultiline
+			} else if newline(r) {
+				cmd.Args = b.String()
+				b.Reset()
 
-			command.Name = string(fields[0])
-			command.Args = string(bytes.TrimSpace(fields[1]))
-		case "EMBED":
-			return nil, fmt.Errorf("deprecated command: EMBED is no longer supported, use the /embed API endpoint instead")
-		case "MESSAGE":
-			command.Name = string(bytes.ToLower(fields[0]))
-			fields = bytes.SplitN(fields[1], []byte(" "), 2)
-			if len(fields) < 2 {
-				return nil, fmt.Errorf("should be in the format <role> <message>")
-			}
-			if !slices.Contains([]string{"system", "user", "assistant"}, string(bytes.ToLower(fields[0]))) {
-				return nil, fmt.Errorf("role must be one of \"system\", \"user\", or \"assistant\"")
-			}
-			command.Args = fmt.Sprintf("%s: %s", string(bytes.ToLower(fields[0])), string(fields[1]))
-		default:
-			if !bytes.HasPrefix(fields[0], []byte("#")) {
-				// log a warning for unknown commands
-				slog.Warn(fmt.Sprintf("Unknown command: %s", fields[0]))
-			}
-			continue
-		}
-
-		commands = append(commands, command)
-		command.Reset()
-	}
-
-	if modelCommand.Args == "" {
-		return nil, errors.New("no FROM line for the model was specified")
-	}
-
-	return commands, scanner.Err()
-}
-
-func scanModelfile(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	advance, token, err = scan([]byte(`"""`), []byte(`"""`), data, atEOF)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	if advance > 0 && token != nil {
-		return advance, token, nil
-	}
-
-	advance, token, err = scan([]byte(`"`), []byte(`"`), data, atEOF)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	if advance > 0 && token != nil {
-		return advance, token, nil
-	}
-
-	return bufio.ScanLines(data, atEOF)
-}
-
-func scan(openBytes, closeBytes, data []byte, atEOF bool) (advance int, token []byte, err error) {
-	newline := bytes.IndexByte(data, '\n')
-
-	if start := bytes.Index(data, openBytes); start >= 0 && start < newline {
-		end := bytes.Index(data[start+len(openBytes):], closeBytes)
-		if end < 0 {
-			if atEOF {
-				return 0, nil, fmt.Errorf("unterminated %s: expecting %s", openBytes, closeBytes)
+				cmds = append(cmds, cmd)
+				cmd = Command{}
+				s = stateName
 			} else {
-				return 0, nil, nil
+				if _, err := b.WriteRune(r); err != nil {
+					return nil, err
+				}
+			}
+		case stateMultiline:
+			if r == '"' && b.Len() == 0 {
+				quotes++
+				continue
+			} else if r == '"' {
+				if quotes--; quotes == 0 {
+					cmd.Args = b.String()
+					b.Reset()
+
+					cmds = append(cmds, cmd)
+					cmd = Command{}
+					s = stateName
+				}
+
+				continue
+			} else {
+				if _, err := b.WriteRune(r); err != nil {
+					return nil, err
+				}
+			}
+		case stateMessage:
+			if space(r) && !isValidRole(b.String()) {
+				return nil, errors.New("role must be one of \"system\", \"user\", or \"assistant\"")
+			} else if space(r) {
+				if _, err := b.WriteRune(':'); err != nil {
+					return nil, err
+				}
+				s = stateArgs
+			}
+
+			if _, err := b.WriteRune(r); err != nil {
+				return nil, err
 			}
 		}
-
-		n := start + len(openBytes) + end + len(closeBytes)
-
-		newData := data[:start]
-		newData = append(newData, data[start+len(openBytes):n-len(closeBytes)]...)
-		return n, newData, nil
 	}
 
-	return 0, nil, nil
+	for _, cmd := range cmds {
+		if cmd.Name == "model" {
+			return cmds, nil
+		}
+	}
+
+	return nil, errors.New("no FROM line")
+}
+
+const (
+	stateName = iota
+	stateArgs
+	stateMultiline
+	stateParameter
+	stateMessage
+)
+
+func alpha(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
+}
+
+func number(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
+func space(r rune) bool {
+	return r == ' ' || r == '\t'
+}
+
+func newline(r rune) bool {
+	return r == '\r' || r == '\n'
+}
+
+func isValidRole(role string) bool {
+	return role == "system" || role == "user" || role == "assistant"
 }
