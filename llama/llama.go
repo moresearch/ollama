@@ -76,6 +76,7 @@ func llamaTokenToPiece(model *C.struct_llama_model, token int) string {
 		C.int32_t(token),
 		(*C.char)(unsafe.Pointer(&buf[0])),
 		C.int32_t(12),
+		C.bool(true),
 	)
 
 	return string(buf)

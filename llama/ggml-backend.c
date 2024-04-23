@@ -421,7 +421,7 @@ GGML_CALL static void ggml_backend_registry_init(void) {
 
     // add forward decls here to avoid including the backend headers
 #ifdef GGML_USE_CUDA
-    extern void ggml_backend_cuda_reg_devices(void);
+    extern GGML_CALL void ggml_backend_cuda_reg_devices(void);
     ggml_backend_cuda_reg_devices();
 #endif
 
@@ -822,7 +822,11 @@ GGML_CALL static enum ggml_status ggml_backend_cpu_graph_compute(ggml_backend_t 
 GGML_CALL static bool ggml_backend_cpu_supports_op(ggml_backend_t backend, const struct ggml_tensor * op) {
     switch (op->op) {
         case GGML_OP_CPY:
-            return op->type != GGML_TYPE_IQ2_XXS && op->type != GGML_TYPE_IQ2_XS && op->type != GGML_TYPE_IQ1_S; // missing type_traits.from_float
+            return
+                op->type != GGML_TYPE_IQ2_XXS &&
+                op->type != GGML_TYPE_IQ2_XS  &&
+                op->type != GGML_TYPE_IQ1_S   &&
+                op->type != GGML_TYPE_IQ1_M; // missing type_traits.from_float
         case GGML_OP_MUL_MAT:
             return op->src[1]->type == GGML_TYPE_F32 || op->src[1]->type == ggml_internal_get_type_traits(op->src[0]->type).vec_dot_type;
         default:
